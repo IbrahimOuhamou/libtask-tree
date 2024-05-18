@@ -1,2 +1,1 @@
-# libtask-tree
-zig library to make tree structered tasks
+# task_tree_lib
