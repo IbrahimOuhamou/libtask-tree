@@ -13,9 +13,9 @@ pub const Task = struct {
     /// can't update at all if it has incompleted previous tasks
     progress: u8 = 0,
     /// @{x}: the task's x position
-    x: u16 = 0,
+    x: f32 = 0,
     /// @{y}: the task's y position
-    y: u16 = 0,
+    y: f32 = 0,
     /// @{parents_ids}: the progress of the parents is updated when this @{task.progress} is updated
     parents_ids: ?[]u32 = null,
     /// @{children_ids}: this @{task.progress} is updated only when it's childrens' progress is updated
@@ -65,7 +65,7 @@ pub const Task = struct {
 
     /// sets @{task.progress} to @{progress}
     pub fn setProgress(task: *Task, progress: @TypeOf(task.progress)) void {
-        task.progress = if(progress <= 100) progress else 100;
+        task.progress = if (progress <= 100) progress else 100;
     }
 
     /// returns true if @{task.parents_ids} has @{parent_id}
