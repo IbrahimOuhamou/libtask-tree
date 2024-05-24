@@ -9,13 +9,12 @@ pub fn build(b: *std.Build) void {
     const optimize = b.standardOptimizeOption(.{});
 
     const libtask_tree = b.addModule("libtask-tree", .{ .root_source_file = .{ .path = "src/lib.zig" }, .target = target, .optimize = optimize });
-    _ = libtask_tree;
 
     const ziglua = b.dependency("ziglua", .{
         .target = target,
         .optimize = optimize,
     });
-    _ = ziglua;
+    libtask_tree.addImport("ziglua", ziglua.module("ziglua"));
 
     const lib_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/lib.zig"),
@@ -32,10 +31,17 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+    const lua_unit_tests = b.addTest(.{
+        .root_source_file = b.path("src/lua.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+    lua_unit_tests.root_module.addImport("ziglua", ziglua.module("ziglua"));
 
     const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const run_task_unit_tests = b.addRunArtifact(task_unit_tests);
     const run_tlist_unit_tests = b.addRunArtifact(tlist_unit_tests);
+    const run_lua_unit_tests = b.addRunArtifact(lua_unit_tests);
 
     // Similar to creating the run step earlier, this exposes a `test` step to
     // the `zig build --help` menu, providing a way for the user to request
@@ -44,4 +50,5 @@ pub fn build(b: *std.Build) void {
     test_step.dependOn(&run_lib_unit_tests.step);
     test_step.dependOn(&run_task_unit_tests.step);
     test_step.dependOn(&run_tlist_unit_tests.step);
+    test_step.dependOn(&run_lua_unit_tests.step);
 }
