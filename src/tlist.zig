@@ -16,25 +16,25 @@ pub const Tlist = struct {
     ///
     /// TaskDoesNotExist:               requested a deleted task @{tlist.data.?[id]} == null
     /// TaskHasChildren:                tried to set progress of task directly when it had children
-    /// TaskDoesNotHaveChildren:        
+    /// TaskDoesNotHaveChildren:
     /// TaskHasIncompletePreviousTasks: tried to set the task's prgress whhile one of its previous tasks where incomplete
     ///
     /// TaskCanNotBeGrandChildOfItSelf: tried to set a task as parent of one of its parents
     /// TaskCanNotBeNextOfItSelf:       tried to make a task next of one of its later tasks
     ///
-    /// InvalidOperation:               
+    /// InvalidOperation:
     ///
     const Error = error{
         OutOfMemory,
 
         OutOfBounds,
         DataIsNull,
-        
+
         TaskDoesNotExist,
         TaskHasChildren,
         TaskDoesNotHaveChildren,
         TaskHasIncompletePreviousTasks,
-        
+
         TaskCanNotBeGrandChildOfItSelf,
         TaskCanNotBeNextOfItSelf,
 
@@ -50,6 +50,7 @@ pub const Tlist = struct {
 
     /// removes all tasks int @{tlist.data} by calling 'tlist.removeTaskById(tlist.data.?.len - 1, allocator)'
     pub fn free(tlist: *Tlist) !void {
+        if (null == tlist.data) return;
         for (tlist.data.?) |task| {
             if (null == task) continue;
             tlist.removeTaskById(task.?.id, false) catch {};
@@ -394,4 +395,3 @@ test "taskSetProgress" {
     try tlist.free();
     allocator.destroy(tlist);
 }
-
