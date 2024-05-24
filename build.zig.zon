@@ -17,6 +17,7 @@
         "src/lib.zig",
         "src/task.zig",
         "src/tlist.zig",
+        "src/lua.zig",
         //"LICENSE",
         "README.md",
     },
