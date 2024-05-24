@@ -24,7 +24,7 @@ pub const Tlist = struct {
     ///
     /// InvalidOperation:
     ///
-    const Error = error{
+    pub const Error = error{
         OutOfMemory,
 
         OutOfBounds,
