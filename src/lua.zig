@@ -12,10 +12,10 @@ const Tlist = @import("tlist.zig").Tlist;
 const Task = @import("task.zig").Task;
 
 pub fn taskNew(lua: *Lua) i32 {
-    const allocator: *std.mem.Allocator = @alignCast(@ptrCast(lua.toPointer(1) catch {
+    const allocator: *std.mem.Allocator = lua.toUserdata(std.mem.Allocator, 1) catch {
         lua.pushFail();
         return 1;
-    }));
+    };
 
     const task: *Task = Task.new(allocator.*) catch {
         lua.pushFail();
@@ -27,101 +27,98 @@ pub fn taskNew(lua: *Lua) i32 {
 }
 
 pub fn taskGetName(lua: *Lua) i32 {
-    const task: *Task = @alignCast(@ptrCast(lua.toPointer(1) catch {
+    const task: *Task = lua.toUserdata(Task, 1) catch {
         lua.pushFail();
         return 1;
-    }));
+    };
 
-    lua.pushString(task.getName());
+    _ = lua.pushString(task.getName());
     return 1;
 }
 
 pub fn taskGetId(lua: *Lua) i32 {
-    const task: **const Task = @alignCast(@ptrCast(lua.toPointer(1) catch {
+    const task: *Task = lua.toUserdata(Task, 1) catch {
         lua.pushFail();
         return 1;
-    }));
+    };
     lua.pushInteger(task.*.getId());
     return 1;
 }
 
 pub fn taskGetProgress(lua: *Lua) i32 {
-    const task: *Task = @alignCast(@ptrCast(lua.toPointer(1) catch {
+    const task: *Task = lua.toUserdata(Task, 1) catch {
         lua.pushFail();
         return 1;
-    }));
+    };
 
     lua.pushInteger(task.getProgress());
     return 1;
 }
 
 pub fn taskHasParentId(lua: *Lua) i32 {
-    const task: *Task = @alignCast(@ptrCast(lua.toPointer(1) catch {
+    const task: *Task = lua.toUserdata(Task, 1) catch {
         lua.pushFail();
         return 1;
-    }));
+    };
 
     const id = lua.toInteger(2) catch {
         lua.pushFail();
         return 1;
     };
 
-    lua.pushBoolean(task.hasParentId(id));
+    lua.pushBoolean(task.hasParentId(@intCast(id)));
     return 1;
 }
 
 pub fn taskHasChildId(lua: *Lua) i32 {
-    const task: *Task = @alignCast(@ptrCast(lua.toPointer(1) catch {
+    const task: *Task = lua.toUserdata(Task, 1) catch {
         lua.pushFail();
         return 1;
-    }));
+    };
 
     const id = lua.toInteger(2) catch {
         lua.pushFail();
         return 1;
     };
 
-    lua.pushInteger(task.hasChildId(id));
+    lua.pushBoolean(task.hasChildId(@intCast(id)));
     return 1;
 }
 
 pub fn taskHasPreviousId(lua: *Lua) i32 {
-    const task: *Task = @alignCast(@ptrCast(lua.toPointer(1) catch {
+    const task: *Task = lua.toUserdata(Task, 1) catch {
         lua.pushFail();
         return 1;
-    }));
+    };
 
     const id = lua.toInteger(2) catch {
         lua.pushFail();
         return 1;
     };
 
-    lua.pushBoolean(task.hasPreviousId(id));
+    lua.pushBoolean(task.hasPreviousId(@intCast(id)));
     return 1;
 }
 
 pub fn taskHasNextId(lua: *Lua) i32 {
-    const task: *Task = @alignCast(@ptrCast(lua.toPointer(1) catch {
+    const task: *Task = lua.toUserdata(Task, 1) catch {
         lua.pushFail();
         return 1;
-    }));
+    };
 
     const id = lua.toInteger(2) catch {
         lua.pushFail();
         return 1;
     };
 
-    lua.pushBoolean(task.hasNextId(id));
+    lua.pushBoolean(task.hasNextId(@intCast(id)));
     return 1;
 }
 
-pub fn initState(lua: *Lua, tlist: *Tlist, allocator: std.mem.Allocator) void {
+pub fn initState(lua: *Lua, tlist: *Tlist) void {
     // this is the module table
     lua.newTable();
     const module_table_index = lua.getTop();
-
-    // this is a helper struct to loop to push zigFn to lua and reduce typos
-    const FunctionName = struct { func: *const ziglua.ZigFn, name: [:0]const u8 };
 
     {
         //this is the module.Task table
@@ -130,21 +127,29 @@ pub fn initState(lua: *Lua, tlist: *Tlist, allocator: std.mem.Allocator) void {
 
         const task_table_index = lua.getTop();
 
-        const functions_arr: []const FunctionName = &[_]FunctionName{
-            .{ .func = taskNew, .name = "new" },
-            .{ .func = taskGetName, .name = "getName" },
-            .{ .func = taskGetId, .name = "getId" },
-            .{ .func = taskGetProgress, .name = "getProgress" },
-            .{ .func = taskHasParentId, .name = "hasParentId" },
-            .{ .func = taskHasChildId, .name = "hasChildId" },
-            .{ .func = taskHasPreviousId, .name = "hasPreviousId" },
-            .{ .func = taskHasNextId, .name = "hasNextId" },
-        };
+        lua.pushFunction(ziglua.wrap(taskNew));
+        lua.setField(task_table_index, "new");
 
-        for (functions_arr) |function_name_pair| {
-            lua.pushFunction(ziglua.wrap(function_name_pair.func));
-            lua.setField(task_table_index, function_name_pair.name);
-        }
+        lua.pushFunction(ziglua.wrap(taskGetName));
+        lua.setField(task_table_index, "getName");
+
+        lua.pushFunction(ziglua.wrap(taskGetId));
+        lua.setField(task_table_index, "getId");
+
+        lua.pushFunction(ziglua.wrap(taskGetProgress));
+        lua.setField(task_table_index, "getProgress");
+
+        lua.pushFunction(ziglua.wrap(taskHasParentId));
+        lua.setField(task_table_index, "hasParentId");
+
+        lua.pushFunction(ziglua.wrap(taskHasChildId));
+        lua.setField(task_table_index, "hasChildId");
+
+        lua.pushFunction(ziglua.wrap(taskHasPreviousId));
+        lua.setField(task_table_index, "hasPreviousId");
+
+        lua.pushFunction(ziglua.wrap(taskHasNextId));
+        lua.setField(task_table_index, "hasNextId");
     }
     lua.setGlobal("TaskTree");
 
@@ -152,7 +157,7 @@ pub fn initState(lua: *Lua, tlist: *Tlist, allocator: std.mem.Allocator) void {
     //TODO: metatable of tlist
     lua.setGlobal("tlist");
 
-    lua.pushLightUserdata(&allocator);
+    lua.pushLightUserdata(&tlist.allocator);
     lua.setGlobal("allocator");
 }
 
@@ -162,12 +167,18 @@ test "bismi_allah" {
     defer Lua.deinit(lua);
 
     const tlist = try Tlist.new(std.testing.allocator);
-    initState(lua, tlist, allocator);
+    initState(lua, tlist);
 
-    try lua.doString(
-        \\tlist.addTask(TaskTree.Task.new(allocator))
+    lua.doString(
+        \\task0 = TaskTree.Task.new(allocator)
         \\
-    );
+    ) catch {
+        std.debug.print("alhamdo li Allah error: {s}\n", .{try lua.toString(-1)});
+    };
+
+    _ = try lua.getGlobal("task0");
+    allocator.destroy(try lua.toUserdata(Task, -1));
 
     try tlist.free();
+    allocator.destroy(tlist);
 }

@@ -49,12 +49,12 @@ pub const Task = struct {
     }
 
     /// returns the @{Task.id}
-    pub fn getId(task: *Task) @TypeOf(Task.id) {
+    pub fn getId(task: *Task) @TypeOf(task.id) {
         return task.id;
     }
 
     /// sets the @{Task.id} to @{id}
-    pub fn setId(task: *Task, id: @TypeOf(Task.id)) void {
+    pub fn setId(task: *Task, id: @TypeOf(task.id)) void {
         task.id = id;
     }
 
