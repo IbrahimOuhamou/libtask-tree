@@ -49,7 +49,7 @@ pub const Tlist = struct {
     }
 
     /// removes all tasks int @{tlist.data} by calling 'tlist.removeTaskById(tlist.data.?.len - 1, allocator)'
-    pub fn free(tlist: *Tlist) !void {
+    pub fn clear(tlist: *Tlist) !void {
         if (null == tlist.data) return;
         for (tlist.data.?) |task| {
             if (null == task) continue;
@@ -296,7 +296,7 @@ test "get/remove task" {
         if (null == task) continue;
     }
 
-    try bismi_allah_tlist.free();
+    try bismi_allah_tlist.clear();
     try expect(null == bismi_allah_tlist.data);
     allocator.destroy(bismi_allah_tlist);
 }
@@ -317,7 +317,7 @@ test "add/remove Child" {
 
     tlist.taskAddChildId(1, 0, false) catch |e| if (Tlist.Error.TaskCanNotBeGrandChildOfItSelf != e) return e;
 
-    try tlist.free();
+    try tlist.clear();
     allocator.destroy(tlist);
 }
 
@@ -338,7 +338,7 @@ test "hasGrandChild" {
     try std.testing.expect(try tlist.taskHasGrandChild(0, 4) != true);
     try std.testing.expect(try tlist.taskHasGrandChild(0, 0) != true);
 
-    try tlist.free();
+    try tlist.clear();
     allocator.destroy(tlist);
 }
 
@@ -352,7 +352,7 @@ test "previousChildren" {
     try tlist.taskAddPreviousId(1, 0);
     tlist.taskSetProgress(1, 100, false) catch |e| if (Tlist.Error.TaskHasIncompletePreviousTasks != e) return e;
 
-    try tlist.free();
+    try tlist.clear();
     allocator.destroy(tlist);
 }
 
@@ -392,6 +392,6 @@ test "taskSetProgress" {
     try expect(50 == tlist.data.?[0].?.progress);
     try expect(50 == tlist.data.?[0].?.progress);
 
-    try tlist.free();
+    try tlist.clear();
     allocator.destroy(tlist);
 }
