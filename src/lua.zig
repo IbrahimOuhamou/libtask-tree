@@ -149,18 +149,32 @@ pub fn tlistNew(lua: *Lua) i32 {
     return 1;
 }
 
-pub fn tlistFree(lua: *Lua) i32 {
+pub fn tlistClear(lua: *Lua) i32 {
     const tlist: *Tlist = lua.toUserdata(Tlist, 1) catch {
         lua.pushFail();
         return 1;
     };
 
-    tlist.free() catch {
+    tlist.clear() catch {
         lua.pushFail();
         return 1;
     };
 
     return 0;
+}
+
+pub fn tlistGetSize(lua: *Lua) i32 {
+    const tlist: *Tlist = lua.toUserdata(Tlist, 1) catch {
+        lua.pushFail();
+        return 1;
+    };
+
+    if (null == tlist.data) {
+        lua.pushNil();
+    } else {
+        lua.pushInteger(@intCast(tlist.data.?.len));
+    }
+    return 1;
 }
 
 pub fn tlistGetTask(lua: *Lua) i32 {
@@ -510,13 +524,14 @@ pub fn tlistTaskRemovePreviousId(lua: *Lua) i32 {
 pub fn initState(lua: *Lua, tlist: *Tlist) void {
     // this is the module table
 
-    lua.newTable();
-    const module_table_index = lua.getTop();
+    //lua.newTable();
+    //const module_table_index = lua.getTop();
 
     {
         //this is the module.Task table
         lua.newTable();
-        defer lua.setField(module_table_index, "Task");
+        //defer lua.setField(module_table_index, "Task");
+        defer lua.setGlobal("Task");
 
         const task_table_index = lua.getTop();
 
@@ -550,15 +565,19 @@ pub fn initState(lua: *Lua, tlist: *Tlist) void {
     {
         //this is the module.Tlist table
         lua.newTable();
-        defer lua.setField(module_table_index, "Tlist");
+        //defer lua.setField(module_table_index, "Tlist");
+        defer lua.setGlobal("Tlist");
 
         const tlist_table_index = lua.getTop();
 
         lua.pushFunction(ziglua.wrap(tlistNew));
         lua.setField(tlist_table_index, "new");
 
-        lua.pushFunction(ziglua.wrap(tlistFree));
-        lua.setField(tlist_table_index, "free");
+        lua.pushFunction(ziglua.wrap(tlistClear));
+        lua.setField(tlist_table_index, "clear");
+
+        lua.pushFunction(ziglua.wrap(tlistGetSize));
+        lua.setField(tlist_table_index, "getSize");
 
         lua.pushFunction(ziglua.wrap(tlistGetTask));
         lua.setField(tlist_table_index, "getTask");
@@ -605,7 +624,7 @@ pub fn initState(lua: *Lua, tlist: *Tlist) void {
         lua.pushFunction(ziglua.wrap(tlistTaskRemovePreviousId));
         lua.setField(tlist_table_index, "taskRemovePreviousId");
     }
-    lua.setGlobal("TaskTree");
+    //lua.setGlobal("TaskTree");
 
     lua.pushLightUserdata(tlist);
     //TODO: metatable of tlist
@@ -625,10 +644,10 @@ test "bismi_allah" {
     initState(lua, tlist);
 
     lua.doString(
-        \\task0 = TaskTree.Task.new(allocator)
-        \\TaskTree.Task.setName(task0, "in the name of Allah")
+        \\task0 = Task.new(allocator)
+        \\Task.setName(task0, "in the name of Allah")
         \\
-        \\TaskTree.Tlist.addTask(tlist, task0)
+        \\Tlist.addTask(tlist, task0)
     ) catch {
         std.debug.print("alhamdo li Allah error: {s}\n", .{try lua.toString(-1)});
     };
@@ -643,6 +662,45 @@ test "bismi_allah" {
         }
     }
 
-    try tlist.free();
+    try tlist.clear();
+    allocator.destroy(tlist);
+}
+
+test "Tlist" {
+    const expect = std.testing.expect;
+    const allocator = std.testing.allocator;
+    const lua = try Lua.init(&allocator);
+    defer Lua.deinit(lua);
+
+    const tlist = try Tlist.new(std.testing.allocator);
+    initState(lua, tlist);
+
+    lua.doString(
+        \\Tlist.addTask(tlist, Task.new(allocator))
+        \\Tlist.addTask(tlist, Task.new(allocator))
+        \\Tlist.addTask(tlist, Task.new(allocator))
+        \\Tlist.addTask(tlist, Task.new(allocator))
+        \\Tlist.addTask(tlist, Task.new(allocator))
+        \\Tlist.addTask(tlist, Task.new(allocator))
+        \\Tlist.removeTaskById(tlist, 0)
+        \\Tlist.removeTaskById(tlist, 1)
+        \\Tlist.removeTaskById(tlist, 2)
+        \\Tlist.removeTaskById(tlist, 3)
+        \\Tlist.removeTaskById(tlist, 4)
+        \\Tlist.removeTaskById(tlist, 5)
+    ) catch {
+        std.debug.print("alhamdo li Allah error: {s}\n", .{try lua.toString(-1)});
+    };
+    for (tlist.data.?) |task| {
+        try expect(null == task);
+    }
+
+    lua.doString(
+        \\Tlist.clear(tlist)
+    ) catch {
+        std.debug.print("alhamdo li Allah error: {s}\n", .{try lua.toString(-1)});
+    };
+    try expect(null == tlist.data);
+
     allocator.destroy(tlist);
 }
