@@ -217,7 +217,7 @@ pub const Tlist = struct {
         if (task.hasNextId(later_id)) return true;
 
         for (task.next_tasks_ids.?) |next_id| {
-            if (tlist.taskHasLaterId(later_id, next_id)) |result| {
+            if (tlist.taskHasLaterId(next_id, later_id)) |result| {
                 if (result) return true;
             } else |e| {
                 return e;
@@ -301,6 +301,8 @@ test "get/remove task" {
     allocator.destroy(bismi_allah_tlist);
 }
 
+// due to the parents' function forwarding the call to the Children's functions
+// only the Children's functions will be tested by the will of Allah
 test "add/remove Child" {
     const allocator = std.testing.allocator;
     const tlist: *Tlist = try Tlist.new(allocator);
@@ -342,7 +344,7 @@ test "hasGrandChild" {
     allocator.destroy(tlist);
 }
 
-test "previousChildren" {
+test "previousTasks" {
     //const expect = std.testing.expect;
     const allocator = std.testing.allocator;
     const tlist: *Tlist = try Tlist.new(allocator);
@@ -351,6 +353,48 @@ test "previousChildren" {
 
     try tlist.taskAddPreviousId(1, 0);
     tlist.taskSetProgress(1, 100, false) catch |e| if (Tlist.Error.TaskHasIncompletePreviousTasks != e) return e;
+    try tlist.taskSetProgress(0, 100, true);
+    try tlist.taskSetProgress(1, 100, true);
+
+    try tlist.clear();
+    allocator.destroy(tlist);
+}
+
+test "add/remove next Tasks" {
+    const allocator = std.testing.allocator;
+    const tlist: *Tlist = try Tlist.new(allocator);
+    try tlist.addTask(try Task.new(allocator));
+    try tlist.addTask(try Task.new(allocator));
+    try tlist.addTask(try Task.new(allocator));
+    try tlist.addTask(try Task.new(allocator));
+
+    try tlist.taskAddNextId(0, 1);
+    try tlist.taskAddNextId(1, 2);
+    try tlist.taskAddNextId(2, 3);
+    tlist.taskAddNextId(3, 0) catch |e| if(Tlist.Error.TaskCanNotBeNextOfItSelf != e) return e;
+
+    try tlist.clear();
+    allocator.destroy(tlist);
+}
+
+test "hasLaterId" {
+    const allocator = std.testing.allocator;
+    const tlist: *Tlist = try Tlist.new(allocator);
+    try tlist.addTask(try Task.new(allocator));
+    try tlist.addTask(try Task.new(allocator));
+    try tlist.addTask(try Task.new(allocator));
+    try tlist.addTask(try Task.new(allocator));
+
+    try tlist.taskAddNextId(0, 1);
+    try tlist.taskAddNextId(1, 2);
+    try tlist.taskAddNextId(2, 3);
+    try std.testing.expect(try tlist.taskHasLaterId(0, 1));
+    try std.testing.expect(try tlist.taskHasLaterId(0, 2));
+    try std.testing.expect(try tlist.taskHasLaterId(0, 3));
+    try std.testing.expect(try tlist.taskHasLaterId(1, 2));
+    try std.testing.expect(try tlist.taskHasLaterId(1, 3));
+    try std.testing.expect(try tlist.taskHasLaterId(2, 3));
+    try std.testing.expect(try tlist.taskHasLaterId(0, 0) != true);
 
     try tlist.clear();
     allocator.destroy(tlist);
