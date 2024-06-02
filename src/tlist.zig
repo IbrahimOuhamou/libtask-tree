@@ -103,8 +103,8 @@ pub const Tlist = struct {
             try tlist.taskRemoveNextId(id, task.next_tasks_ids.?[0]);
         }
 
-        while (null != task.next_tasks_ids) {
-            try tlist.taskRemoveNextId(id, task.next_tasks_ids.?[0]);
+        while (null != task.previous_tasks_ids) {
+            try tlist.taskRemovePreviousId(id, task.previous_tasks_ids.?[0]);
         }
 
         tlist.allocator.destroy(task);
