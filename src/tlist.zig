@@ -16,29 +16,37 @@ pub const Tlist = struct {
     ///
     /// TaskDoesNotExist:               requested a deleted task @{tlist.data.?[id]} == null
     /// TaskHasChildren:                tried to set progress of task directly when it had children
-    /// TaskDoesNotHaveChildren:
-    /// TaskHasIncompletePreviousTasks: tried to set the task's prgress whhile one of its previous tasks where incomplete
+    /// TaskDoesNotHaveChildren:        @{task.children_ids} == null
+    /// TaskHasIncompletePreviousTasks: tried to set the task's prgress while one of its previous tasks where incomplete
     ///
     /// TaskCanNotBeGrandChildOfItSelf: tried to set a task as parent of one of its parents
     /// TaskCanNotBeNextOfItSelf:       tried to make a task next of one of its later tasks
     ///
-    /// InvalidOperation:
-    ///
     pub const Error = error{
+        /// passed from aloocating functions
         OutOfMemory,
 
+        /// an id bigger than @{tlist.data.?.len}
         OutOfBounds,
+        /// @{tlist.data} == null
         DataIsNull,
 
+        /// requested a deleted task @{tlist.data.?[id]} == null
         TaskDoesNotExist,
+        /// tried to set progress of task directly when it had children
         TaskHasChildren,
+        /// @{task.children_ids} == null
         TaskDoesNotHaveChildren,
+        /// tried to set the task's prgress while one of its previous tasks where incomplete
         TaskHasIncompletePreviousTasks,
 
+        /// tried to set a task as parent of one of its parents
         TaskCanNotBeGrandChildOfItSelf,
+        /// tried to make a task next of one of its later tasks
         TaskCanNotBeNextOfItSelf,
 
-        InvalidOperation,
+        // InvalidOperation:
+        //InvalidOperation,
     };
 
     /// returns a new initialized Tlist with @{allocator} as @{tlist.allocator}
