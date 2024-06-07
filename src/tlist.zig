@@ -263,6 +263,200 @@ pub const Tlist = struct {
     pub fn taskRemovePreviousId(tlist: *Tlist, id: u32, previous_id: u32) Error!void {
         try tlist.taskRemoveNextId(previous_id, id);
     }
+
+    /// writes tlist.data to the @stream
+    /// stream should have:
+    /// 1- read(buffer: []u8) !somethingToBeIgnoredForNow
+    ///
+    /// can pass a file like:
+    /// tlist.saveToStream(file)
+    ///
+    /// saveToStream() tries to optimize by only saving the parents and next tasks ids
+    ///
+    /// TODO: deal with version changes
+    pub fn saveToStream(tlist: *Tlist, stream: anytype) !void {
+        // save order:
+        // 1. tlist.data.len
+        // 2. tasks
+        // id - name - progress - x - y
+        // parents_ids_size - [ id1, id2 ]
+        // children_ids_size - [ id1, id2 ]
+        // previous_tasks_ids_size - [ id1, id2 ]
+        // next_tasks_ids_size - [ id1, id2 ]
+
+        if (null == tlist.data) return Error.DataIsNull;
+
+        {
+            const len: u32 = @truncate(tlist.data.?.len);
+            _ = try stream.write(std.mem.asBytes(&len));
+        }
+
+        for (tlist.data.?) |task| {
+            if (null == task) continue;
+            _ = try stream.write(std.mem.asBytes(&task.?.id));
+            _ = try stream.write(&task.?.name);
+            _ = try stream.write(std.mem.asBytes(&task.?.progress));
+            _ = try stream.write(std.mem.asBytes(&task.?.x));
+            _ = try stream.write(std.mem.asBytes(&task.?.y));
+
+            save_parents: {
+                if (null == task.?.parents_ids) {
+                    var len: u32 = 0;
+                    _ = try stream.write(std.mem.asBytes(&len));
+                    break :save_parents;
+                }
+
+                const len: u32 = @truncate(task.?.parents_ids.?.len);
+                _ = try stream.write(std.mem.asBytes(&len));
+
+                for (task.?.parents_ids.?) |parent_id| {
+                    _ = try stream.write(std.mem.asBytes(&parent_id));
+                }
+            }
+
+            save_children: {
+                if (null == task.?.children_ids) {
+                    var len: u32 = 0;
+                    _ = try stream.write(std.mem.asBytes(&len));
+                    break :save_children;
+                }
+
+                const len: u32 = @truncate(task.?.children_ids.?.len);
+                _ = try stream.write(std.mem.asBytes(&len));
+
+                for (task.?.children_ids.?) |child_id| {
+                    _ = try stream.write(std.mem.asBytes(&child_id));
+                }
+            }
+
+            save_next_tasks: {
+                if (null == task.?.next_tasks_ids) {
+                    var len: u32 = 0;
+                    _ = try stream.write(std.mem.asBytes(&len));
+                    break :save_next_tasks;
+                }
+
+                const len: u32 = @truncate(task.?.next_tasks_ids.?.len);
+                _ = try stream.write(std.mem.asBytes(&len));
+
+                for (task.?.next_tasks_ids.?) |next_task_id| {
+                    _ = try stream.write(std.mem.asBytes(&next_task_id));
+                }
+            }
+
+            save_previous_tasks: {
+                if (null == task.?.previous_tasks_ids) {
+                    var len: u32 = 0;
+                    _ = try stream.write(std.mem.asBytes(&len));
+                    break :save_previous_tasks;
+                }
+
+                const len: u32 = @truncate(task.?.previous_tasks_ids.?.len);
+                _ = try stream.write(std.mem.asBytes(&len));
+
+                for (task.?.previous_tasks_ids.?) |previous_task_id| {
+                    _ = try stream.write(std.mem.asBytes(&previous_task_id));
+                }
+            }
+        }
+    }
+
+    /// reads from a stream after it was saved using saveToStream()
+    /// used like the following:
+    /// file.seekTo(0); //or wherever you put it
+    /// tlist.readFromStream(file);
+    ///
+    /// @stream should have the read() function
+    /// read(buffer: []u8) !usize
+    /// it should return the number of bytes read
+    ///
+    /// TODO: deal with version changes
+    pub fn readFromStream(tlist: *Tlist, stream: anytype, reset_tlist: bool) !void {
+        if (reset_tlist) try tlist.clear();
+
+        {
+            //loading length of tlist or resizing it
+            var len: u32 = 0;
+            if (0 == try stream.read(std.mem.asBytes(&len))) return Error.DataIsNull;
+
+            if (reset_tlist) try tlist.clear();
+
+            if (null == tlist.data) {
+                tlist.data = try tlist.allocator.alloc(?*Task, len);
+
+                var i: u32 = 0;
+                while (i < tlist.data.?.len) : (i += 1) {
+                    tlist.data.?[i] = null;
+                }
+            } else if (@as(u32, @truncate(tlist.data.?.len)) < len) {
+                tlist.data = try tlist.allocator.realloc(tlist.data.?, len);
+            }
+        }
+
+        loading_tasks: while (true) {
+            var task: *Task = try Task.new(tlist.allocator);
+            // breaks if reached EndOfFile
+            if (0 == try stream.read(std.mem.asBytes(&task.id))) {
+                tlist.allocator.destroy(task);
+                break :loading_tasks;
+            }
+
+            tlist.data.?[task.id] = task;
+            if (0 == try stream.read(&task.name)) break :loading_tasks;
+            if (0 == try stream.read(std.mem.asBytes(&task.progress))) break :loading_tasks;
+            if (0 == try stream.read(std.mem.asBytes(&task.x))) break :loading_tasks;
+            if (0 == try stream.read(std.mem.asBytes(&task.y))) break :loading_tasks;
+
+            load_parents: {
+                var len: u32 = 0;
+                if (0 == try stream.read(std.mem.asBytes(&len))) break :loading_tasks;
+                if (0 == len) break :load_parents;
+                var i: u32 = 0;
+                while (i < len) : (i += 1) {
+                    var parent_id: u32 = 0;
+                    _ = try stream.read(std.mem.asBytes(&parent_id));
+                    try task.addParentId(parent_id, tlist.allocator);
+                }
+            }
+
+            load_children: {
+                var len: u32 = 0;
+                if (0 == try stream.read(std.mem.asBytes(&len))) break :loading_tasks;
+                if (0 == len) break :load_children;
+                var i: u32 = 0;
+
+                while (i < len) : (i += 1) {
+                    var child_id: u32 = 0;
+                    _ = try stream.read(std.mem.asBytes(&child_id));
+                    try task.addChildId(child_id, tlist.allocator);
+                }
+            }
+
+            load_next_tasks: {
+                var len: u32 = 0;
+                if (0 == try stream.read(std.mem.asBytes(&len))) break :loading_tasks;
+                if (0 == len) break :load_next_tasks;
+                var i: u32 = 0;
+                while (i < len) : (i += 1) {
+                    var next_task_id: u32 = 0;
+                    _ = try stream.read(std.mem.asBytes(&next_task_id));
+                    try task.addNextId(next_task_id, tlist.allocator);
+                }
+            }
+
+            load_previous_tasks: {
+                var len: u32 = 0;
+                if (0 == try stream.read(std.mem.asBytes(&len))) break :loading_tasks;
+                if (0 == len) break :load_previous_tasks;
+                var i: u32 = 0;
+                while (i < len) : (i += 1) {
+                    var previous_task_id: u32 = 0;
+                    _ = try stream.read(std.mem.asBytes(&previous_task_id));
+                    try task.addPreviousId(previous_task_id, tlist.allocator);
+                }
+            }
+        }
+    }
 };
 
 test "get/remove task" {
@@ -371,7 +565,7 @@ test "add/remove next Tasks" {
     try tlist.taskAddNextId(0, 1);
     try tlist.taskAddNextId(1, 2);
     try tlist.taskAddNextId(2, 3);
-    tlist.taskAddNextId(3, 0) catch |e| if(Tlist.Error.TaskCanNotBeNextOfItSelf != e) return e;
+    tlist.taskAddNextId(3, 0) catch |e| if (Tlist.Error.TaskCanNotBeNextOfItSelf != e) return e;
 
     try tlist.clear();
     allocator.destroy(tlist);
@@ -435,6 +629,70 @@ test "taskSetProgress" {
     try expect(100 == tlist.data.?[2].?.progress);
     try expect(50 == tlist.data.?[0].?.progress);
     try expect(50 == tlist.data.?[0].?.progress);
+
+    try tlist.clear();
+    allocator.destroy(tlist);
+}
+
+test "save/load" {
+    //in the name of Allah
+    const expect = std.testing.expect;
+    const allocator = std.testing.allocator;
+    const tlist: *Tlist = try Tlist.new(allocator);
+    try tlist.addTask(try Task.new(allocator)); //0
+    try tlist.addTask(try Task.new(allocator)); //1
+    try tlist.addTask(try Task.new(allocator)); //2
+    try tlist.addTask(try Task.new(allocator)); //3
+    try tlist.addTask(try Task.new(allocator)); //4
+    try tlist.addTask(try Task.new(allocator)); //5
+
+    try tlist.removeTaskById(2, false);
+
+    try tlist.taskAddChildId(0, 1, false);
+    try tlist.taskAddChildId(1, 3, false);
+    try tlist.taskAddChildId(3, 4, false);
+    try tlist.taskAddChildId(3, 5, false);
+
+    try tlist.taskSetProgress(4, 50, true);
+    try tlist.taskSetProgress(5, 20, true);
+
+    try tlist.taskAddNextId(4, 5);
+
+    const file = try std.fs.cwd().createFile("bismi_allah.bin", .{ .read = true });
+    defer {
+        file.close();
+        std.fs.cwd().deleteFile("bismi_allah.bin") catch {};
+    }
+
+    try tlist.saveToStream(file);
+    try tlist.clear();
+
+    try file.seekTo(0);
+    try tlist.readFromStream(file, true);
+
+    try expect(null != tlist.data);
+    try expect(null != tlist.data.?[0]);
+    try expect(null != tlist.data.?[1]);
+    try expect(null == tlist.data.?[2]);
+    try expect(null != tlist.data.?[3]);
+    try expect(null != tlist.data.?[4]);
+    try expect(null != tlist.data.?[5]);
+
+    try expect(tlist.data.?[0].?.hasChildId(1));
+    try expect(tlist.data.?[1].?.hasChildId(3));
+    try expect(tlist.data.?[3].?.hasChildId(4));
+
+    try expect(tlist.data.?[1].?.hasParentId(0));
+    try expect(tlist.data.?[3].?.hasParentId(1));
+    try expect(tlist.data.?[4].?.hasParentId(3));
+
+    try expect(50 == tlist.data.?[4].?.progress);
+    try expect(35 == tlist.data.?[3].?.progress);
+    try expect(35 == tlist.data.?[1].?.progress);
+    try expect(35 == tlist.data.?[0].?.progress);
+
+    try expect(tlist.data.?[4].?.hasNextId(5));
+    try expect(tlist.data.?[5].?.hasPreviousId(4));
 
     try tlist.clear();
     allocator.destroy(tlist);
