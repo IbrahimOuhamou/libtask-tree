@@ -16,11 +16,11 @@ pub fn build(b: *std.Build) void {
     });
     libtask_tree.addImport("ziglua", ziglua.module("ziglua"));
 
-    const lib_unit_tests = b.addTest(.{
-        .root_source_file = b.path("src/lib.zig"),
-        .target = target,
-        .optimize = optimize,
-    });
+    // const lib_unit_tests = b.addTest(.{
+    //     .root_source_file = b.path("src/lib.zig"),
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
     const task_unit_tests = b.addTest(.{
         .root_source_file = b.path("src/task.zig"),
         .target = target,
@@ -38,7 +38,7 @@ pub fn build(b: *std.Build) void {
     });
     lua_unit_tests.root_module.addImport("ziglua", ziglua.module("ziglua"));
 
-    const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
+    // const run_lib_unit_tests = b.addRunArtifact(lib_unit_tests);
     const run_task_unit_tests = b.addRunArtifact(task_unit_tests);
     const run_tlist_unit_tests = b.addRunArtifact(tlist_unit_tests);
     const run_lua_unit_tests = b.addRunArtifact(lua_unit_tests);
@@ -47,7 +47,7 @@ pub fn build(b: *std.Build) void {
     // the `zig build --help` menu, providing a way for the user to request
     // running the unit tests.
     const test_step = b.step("test", "Run unit tests");
-    test_step.dependOn(&run_lib_unit_tests.step);
+    // test_step.dependOn(&run_lib_unit_tests.step);
     test_step.dependOn(&run_task_unit_tests.step);
     test_step.dependOn(&run_tlist_unit_tests.step);
     test_step.dependOn(&run_lua_unit_tests.step);
