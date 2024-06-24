@@ -8,7 +8,11 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
-    const libtask_tree = b.addModule("libtask-tree", .{ .root_source_file = .{ .path = "src/lib.zig" }, .target = target, .optimize = optimize });
+    const libtask_tree = b.addModule("libtask-tree", .{
+        .root_source_file = b.path("src/lib.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
 
     const ziglua = b.dependency("ziglua", .{
         .target = target,
